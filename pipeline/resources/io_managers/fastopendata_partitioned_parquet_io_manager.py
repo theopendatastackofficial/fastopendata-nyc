@@ -1,18 +1,24 @@
-# File: mta/resources/io_managers/fastopendata_io_manager.py
 import os
 import requests
 import polars as pl
 from dagster import ConfigurableIOManager, OutputContext, InputContext
 
-class FastOpenDataParquetIOManager(ConfigurableIOManager):
+# (NEW) For concurrency
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+
+class FastOpenDataPartitionedParquetIOManager(ConfigurableIOManager):
     base_dir: str
 
     def handle_output(self, context: OutputContext, obj):
+        """
+        Download month-by-month partitioned data for the asset.
+        We now parallelize the month-based downloads to reduce overall runtime.
+        """
         asset_name = context.asset_key.to_python_identifier()
-        context.log.info(f"[FastOpenDataParquetIOManager] handle_output for '{asset_name}'")
+        context.log.info(f"[FastOpenDataPartitionedParquetIOManager] handle_output for '{asset_name}'")
 
         # -- 1) Parse the date range from the returned object (dict) --
-        #    e.g. {"start_year": 2022, "start_month": 3, "end_year": 2024, "end_month": 12}
         if not isinstance(obj, dict):
             context.log.warn(
                 f"Asset '{asset_name}' did not return a dict with start/end date. Nothing to do."
@@ -30,27 +36,36 @@ class FastOpenDataParquetIOManager(ConfigurableIOManager):
             )
             return
 
-        # -- 2) Generate (year, month) from start to end --
-        #    For example, from (2022,3) to (2024,12).
-        #    A simple approach: loop until you reach end_year, end_month.
-        downloaded_files_total = []
-        
+        # -- 2) Generate all (year, month) partitions --
+        partitions = []
         current_year = start_year
         current_month = start_month
-        
+
         while (current_year < end_year) or (current_year == end_year and current_month <= end_month):
-            # Download one partition for (year, month)
-            partition_files = self._download_partition(asset_name, current_year, current_month, context)
-            downloaded_files_total.extend(partition_files)
-            
-            # increment month
+            partitions.append((current_year, current_month))
             current_month += 1
             if current_month > 12:
                 current_month = 1
                 current_year += 1
 
+        # -- 3) Download partitions in parallel --
+        downloaded_files_total = []
+        max_workers = 8  # Adjust concurrency based on your environment
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_partition = {}
+            for (yr, mo) in partitions:
+                # Submit each partition download as a separate task
+                future = executor.submit(self._download_partition, asset_name, yr, mo, context)
+                future_to_partition[future] = (yr, mo)
+
+            # Collect results as they complete
+            for future in as_completed(future_to_partition):
+                result = future.result()  # list of downloaded file paths
+                downloaded_files_total.extend(result)
+
         context.log.info(
-            f"[FastOpenDataParquetIOManager] Downloaded {len(downloaded_files_total)} files "
+            f"[FastOpenDataPartitionedParquetIOManager] Downloaded {len(downloaded_files_total)} files "
             f"total for asset '{asset_name}'."
         )
 
@@ -71,6 +86,7 @@ class FastOpenDataParquetIOManager(ConfigurableIOManager):
             file_name = f"{asset_name}_{year:04d}{month:02d}_{batch_num}.parquet"
             file_url = remote_dir + file_name
 
+            # HEAD check to see if file exists
             resp_head = requests.head(file_url)
             if resp_head.status_code == 404:
                 break  # no more
@@ -81,11 +97,12 @@ class FastOpenDataParquetIOManager(ConfigurableIOManager):
             local_file_path = os.path.join(local_dir, file_name)
             self._download_file(file_url, local_file_path)
             downloaded.append(local_file_path)
+
             batch_num += 1
 
         if downloaded:
             context.log.info(
-                f"  - Downloaded {len(downloaded)} files for year={year}, month={month}"
+                f"  - Downloaded {len(downloaded)} files for {asset_name} year={year}, month={month}"
             )
         return downloaded
 

@@ -8,7 +8,7 @@ from dagster import asset, OpExecutionContext, Output
 
 @asset(
     name="mta_subway_hourly_ridership",
-    io_manager_key="fastopendata_io_manager",
+    io_manager_key="fastopendata_partitioned_parquet_io_manager",
 )
 def mta_subway_hourly_ridership():
     """
@@ -27,7 +27,7 @@ def mta_subway_hourly_ridership():
 
 @asset(
     name="mta_subway_origin_destination_2023",
-    io_manager_key="fastopendata_io_manager",
+    io_manager_key="fastopendata_partitioned_parquet_io_manager",
 )
 def mta_subway_origin_destination_2023():
     """
@@ -46,7 +46,7 @@ def mta_subway_origin_destination_2023():
 
 @asset(
     name="mta_subway_origin_destination_2024",
-    io_manager_key="fastopendata_io_manager",
+    io_manager_key="fastopendata_partitioned_parquet_io_manager",
 )
 def mta_subway_origin_destination_2024():
     """
@@ -64,7 +64,7 @@ def mta_subway_origin_destination_2024():
 
 @asset(
     name="nyc_threeoneone_requests",
-    io_manager_key="fastopendata_io_manager",
+    io_manager_key="fastopendata_partitioned_parquet_io_manager",
 )
 def nyc_threeoneone_requests():
     """

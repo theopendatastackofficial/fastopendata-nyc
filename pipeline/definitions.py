@@ -1,28 +1,39 @@
 import dagster
 import os
 from dagster import Definitions, load_assets_from_modules
-from pipeline.assets.ingestion import fast_open_assets #Our ingestion assets
+# Existing imports
+from pipeline.assets.ingestion import partitioned_fast_open_assets
+from pipeline.resources.io_managers.fastopendata_partitioned_parquet_io_manager import FastOpenDataPartitionedParquetIOManager
+from pipeline.constants import LAKE_PATH
 
-from pipeline.constants import LAKE_PATH  #The base path for our data lake of parquet files
+# Add the new imports
+from pipeline.assets.ingestion import single_file_open_assets
+from pipeline.resources.io_managers.fastopendata_single_file_parquet_io_manager import FastOpenDataSingleFileParquetIoManager
 
-from pipeline.resources.io_managers.fastopendata_io_manager import FastOpenDataParquetIOManager #Our IO Manager for storing dagster dataframes as parquet files
+# Load existing "fast open" assets
+partitioned_fast_open_assets = load_assets_from_modules([partitioned_fast_open_assets])
 
-# Load MTA and Weather assets
-fast_open_assets = load_assets_from_modules([fast_open_assets])
+# Load our new single-file assets
+single_file_assets = load_assets_from_modules([single_file_open_assets])
 
-
-fastopendata_io_manager = FastOpenDataParquetIOManager(
+# Create the existing partition-based IO manager
+fastopendata_partitioned_parquet_io_manager = FastOpenDataPartitionedParquetIOManager(
     base_dir=LAKE_PATH  
 )
 
-# Then, bundle all of them into resources
+# Create the new single-file IO manager
+fastopendata_singlefile__parquet_io_manager = FastOpenDataSingleFileParquetIoManager(
+    base_dir=LAKE_PATH
+)
+
+# Bundle both IO managers into the resources dictionary
 resources = {
-    "fastopendata_io_manager": fastopendata_io_manager,  
+    "fastopendata_partitioned_parquet_io_manager": fastopendata_partitioned_parquet_io_manager,
+    "fastopendata_singlefile__parquet_io_manager": fastopendata_singlefile__parquet_io_manager,
 }
 
-
-# Define the Dagster assets taking part in our data platform, and the resources they can use
+# Combine both sets of assets into a single Definitions object
 defs = Definitions(
-    assets=fast_open_assets,
+    assets=partitioned_fast_open_assets + single_file_assets,
     resources=resources
 )
