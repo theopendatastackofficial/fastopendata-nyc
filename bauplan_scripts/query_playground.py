@@ -26,7 +26,7 @@ python query_playground.py
 import bauplan
 # global Bauplan client
 # we assume you have bauplan installed and a working API key configured
-bauplan_client = bauplan.Client()
+bauplan_client = bauplan.Client(profile='prod')
 # namespace hosting the tables
 BAUPLAN_TABLE_NAMESPACE = 'nyc_open_data'
 TABLE = 'mta_subway_hourly_ridership'
@@ -35,7 +35,10 @@ BRANCH = 'main'
 # print the schema of the table
 print(bauplan_client.get_table(FQN, BRANCH))
 # run a query and print the results
-query = f"SELECT * FROM {FQN} LIMIT 10"
+query = f"""
+    SELECT SUM(ridership) FROM {FQN}
+    WHERE transit_timestamp > '2024-11-01T23:00:00.00'
+"""
 # this will return an Arrow table by default
 _table = bauplan_client.query(query)
 print(_table)
