@@ -42,7 +42,7 @@ from tqdm import tqdm
 # global S3 client  
 s3_client = boto3.client('s3')
 # global Bauplan client
-bauplan_client = bauplan.Client()
+bauplan_client = bauplan.Client(profile='prod')
 
 # global variables
 TARGET_S3_BUCKET = 'alpha-hello-bauplan'
@@ -53,12 +53,12 @@ BAUPLAN_TABLE_NAMESPACE = 'nyc_open_data'
 # match folder with the partition column
 TABLE_FOLDERS = [
     ('mta_subway_hourly_ridership', 'transit_timestamp'),
-    ('mta_subway_origin_destination_2023', 'origin destination'),
-    ('mta_subway_origin_destination_2024', 'origin destination'),
+    ('mta_subway_origin_destination_2023', 'timestamp'),
+    ('mta_subway_origin_destination_2024', 'timestamp'),
     ('nyc_threeoneone_requests', 'created_date')
 ]
 # if we turn this off, we won't upload the files (perhaps they are already there?)
-IS_UPLOAD = True
+IS_UPLOAD = False
 
 # first we get the files we need to upload from the folder in the project
 # and upload them to the bucket in the relevant subfolder (one folder one table)
@@ -75,54 +75,58 @@ if IS_UPLOAD:
 # i.e. using data branches - to know more about the pattern, see for example:
 # https://www.prefect.io/blog/prefect-on-the-lakehouse-write-audit-publish-pattern-with-bauplan
 
-# # read the user info from the bauplan profile programmatically
-# user = bauplan_client.info().user
-# username = user.username
-# # make sure we have all the info available
-# assert username is not None and user is not None
-# # important global branch / table variables
-# source_branch_name = 'main'
-# my_branch_name_prefix = f'{username}.open_data_2025_'
-# # let's import one table at a time
-# for table in TABLE_FOLDERS:
-#     print(f"\n\n====> Processing table {table[0]}")
-#     table_name = table[0]
-#     partition_col = table[1]
-#     # create a branch for the table
-#     branch_name = f'{my_branch_name_prefix}{table[0]}'
-#     bauplan_client.create_branch(branch_name, source_branch_name)
-#     # if not exists, create the namespace
-#     if not bauplan_client.has_namespace(BAUPLAN_TABLE_NAMESPACE, branch_name):
-#         bauplan_client.create_namespace(BAUPLAN_TABLE_NAMESPACE, branch_name)
-#     # create the table...
-#     search_uri = f"{TARGET_S3_DESTINATION}{table_name}"
-#     print(f"Creating table {table_name} with uri {search_uri}")
-#     bauplan_client.create_table(
-#         table=table_name,
-#         search_uri=search_uri,
-#         branch=branch_name,
-#         namespace=BAUPLAN_TABLE_NAMESPACE,
-#         partitioned_by=f'DAY({partition_col})',
-#         # since this is a demo, we replace the table if it exists
-#         replace=True
-#     )
-#     # ...and import the data
-#     print(f"Importing data for table {table_name}")
-#     plan_state = bauplan_client.import_data(
-#         table=table_name,
-#         search_uri=search_uri,
-#         branch=branch_name,
-#         namespace=BAUPLAN_TABLE_NAMESPACE,
-#         client_timeout=60*10
-#     )
-#     if plan_state.error:
-#         raise Exception(f"Error importing data for table {table_name}: {plan_state.error}")
-#     # if all went well, we can merge the branch and delete it
-#     print(f"Merging branch {branch_name}")
-#     bauplan_client.merge_branch(branch_name, source_branch_name)
-#     print(f"Deleting branch {branch_name}")
-#     bauplan_client.delete_branch(branch_name)
-#     print(f"\n\n====> Processing done for {table[0]}")
+# read the user info from the bauplan profile programmatically
+user = bauplan_client.info().user
+username = user.username
+# make sure we have all the info available
+assert username is not None and user is not None
+# important global branch / table variables
+source_branch_name = 'main'
+my_branch_name_prefix = f'{username}.open_data_2025_'
+# let's import one table at a time
+for table in TABLE_FOLDERS:
+    print(f"\n\n====> Processing table {table[0]}")
+    table_name = table[0]
+    partition_col = table[1]
+    # create a branch for the table
+    branch_name = f'{my_branch_name_prefix}{table[0]}'
+    # clean up the branch if it exists
+    if bauplan_client.has_branch(branch_name):
+        bauplan_client.delete_branch(branch_name)
+     
+    bauplan_client.create_branch(branch_name, source_branch_name)
+    # if not exists, create the namespace
+    if not bauplan_client.has_namespace(BAUPLAN_TABLE_NAMESPACE, branch_name):
+        bauplan_client.create_namespace(BAUPLAN_TABLE_NAMESPACE, branch_name)
+    # create the table...
+    search_uri = f"{TARGET_S3_DESTINATION}{table_name}/*.parquet"
+    print(f"Creating table {table_name} with uri {search_uri}")
+    bauplan_client.create_table(
+        table=table_name,
+        search_uri=search_uri,
+        branch=branch_name,
+        namespace=BAUPLAN_TABLE_NAMESPACE,
+        partitioned_by=f'DAY({partition_col})',
+        # since this is a demo, we replace the table if it exists
+        replace=True
+    )
+    # ...and import the data
+    print(f"Importing data for table {table_name}")
+    plan_state = bauplan_client.import_data(
+        table=table_name,
+        search_uri=search_uri,
+        branch=branch_name,
+        namespace=BAUPLAN_TABLE_NAMESPACE,
+        client_timeout=60*10
+    )
+    if plan_state.error:
+        raise Exception(f"Error importing data for table {table_name}: {plan_state.error}")
+    # if all went well, we can merge the branch and delete it
+    print(f"Merging branch {branch_name}")
+    bauplan_client.merge_branch(branch_name, source_branch_name)
+    print(f"Deleting branch {branch_name}")
+    bauplan_client.delete_branch(branch_name)
+    print(f"\n\n====> Processing done for {table[0]}")
     
     
-# print("All done!")
+print("All done!")
