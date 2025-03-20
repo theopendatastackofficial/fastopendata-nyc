@@ -19,7 +19,19 @@ rm -f .env
 touch .env
 
 # Step 5: Run exportpathlinux.py to retrieve DAGSTER_HOME
-readarray -t PATHS < <(uv run scripts/exportpathlinux.py)
+BASH_VERSION_MAJOR=$(echo "$BASH_VERSION" | cut -d. -f1)
+
+if [ "$BASH_VERSION_MAJOR" -ge 4 ]; then
+    # Use readarray for Bash 4+
+    readarray -t PATHS < <(uv run scripts/exportpathlinux.py)
+else
+    # Fallback for older Bash versions (macOS default Bash 3.2)
+    PATHS=()
+    while IFS= read -r line; do
+        PATHS+=("$line")
+    done < <(uv run scripts/exportpathlinux.py)
+fi
+
 DAGSTER_HOME="${PATHS[0]}"
 
 if [ -z "$DAGSTER_HOME" ]; then

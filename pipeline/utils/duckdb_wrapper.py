@@ -114,7 +114,7 @@ class DuckDBWrapper:
         try:
             query = f"""
             CREATE OR REPLACE VIEW {table_name} AS 
-            SELECT * FROM read_parquet('{path_str}', hive_partitioning=true)
+            SELECT * FROM read_parquet('{path_str}', hive_partitioning=true, union_by_name=true)
             """
             self.con.execute(query)
             self.registered_tables.append(table_name)
