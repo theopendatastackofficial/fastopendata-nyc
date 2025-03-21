@@ -42,5 +42,6 @@ the user does not have to know anything about the cloud to run this at scale.
 ## Visualize the result
 
 ```shell 
+python viz_utils.py --branch christianc.fast_open_data
 ```
 This script will save two png files in the `pipeline` folder. One is a heatmap for the visualization of the training dataset, the other is visualized the actual data vs the predicted. 
