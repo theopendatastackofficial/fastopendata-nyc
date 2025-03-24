@@ -27,3 +27,15 @@ dependencies = [
 [tool.dagster]
 module_name = "pipeline.definitions"
 code_location_name = "pipeline"
+
+[project.optional-dependencies]
+bauplan = [
+    "bauplan>=0.0.3a359",
+    "matplotlib==3.8.1",
+    "pandas==2.2.0",
+    "seaborn==0.13.0",
+]
+
+
+[tool.uv.workspace]
+members = ["bauplan"]
