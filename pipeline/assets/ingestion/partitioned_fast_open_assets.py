@@ -16,7 +16,7 @@ from dagster import asset, Output, MetadataValue
 )
 def mta_subway_hourly_ridership():
     return {
-        "start_year": 2022,
+        "start_year": 2023,
         "start_month": 3,
         "end_year": 2024,
         "end_month": 12
@@ -67,7 +67,7 @@ def mta_subway_origin_destination_2024():
 )
 def nyc_threeoneone_requests():
     return {
-        "start_year": 2010,
+        "start_year": 2022,
         "start_month": 1,
         "end_year": 2025,
         "end_month": 1
@@ -84,7 +84,7 @@ def nyc_threeoneone_requests():
 )
 def crime_nypd_arrests():
     return {
-        "start_year": 2013,
+        "start_year": 2018,
         "start_month": 3,
         "end_year": 2023,
         "end_month": 12

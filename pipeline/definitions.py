@@ -2,26 +2,35 @@ import dagster
 import os
 from dagster import Definitions, load_assets_from_modules
 # Imports
-from pipeline.assets.ingestion import partitioned_fast_open_assets
+from pipeline.assets.ingestion import partitioned_fast_open_assets, single_file_open_assets
+from pipeline.resources.io_managers.fastopendata_single_io_manager import FastOpenDataSingleFileParquetIoManager
 from pipeline.resources.io_managers.fastopendata_partitioned_parquet_io_manager import FastOpenDataPartitionedParquetIOManager
 from pipeline.constants import LAKE_PATH
 
-# Load existing "fast open" assets
+single_file_open_assets  = load_assets_from_modules([single_file_open_assets])
+
 partitioned_fast_open_assets = load_assets_from_modules([partitioned_fast_open_assets])
 
-
-# Create the existing partition-based IO manager
+# Partition-based IO manager (existing)
 fastopendata_partitioned_parquet_io_manager = FastOpenDataPartitionedParquetIOManager(
-    base_dir=LAKE_PATH  
+    base_dir=LAKE_PATH
 )
 
-# IO manager for downloading from Fast Open Data into the resources dictionary
+# Single-file IO manager (new)
+fastopendata_singlefile_io_manager = FastOpenDataSingleFileParquetIoManager(
+    base_dir=LAKE_PATH
+)
+
+# Combine both managers in resources
 resources = {
-    "fastopendata_partitioned_parquet_io_manager": fastopendata_partitioned_parquet_io_manager,
+    "fastopendata_partitioned_parquet_io_manager": fastopendata_partitioned_parquet_io_manager,           # for partition-based assets
+    "fastopendata_singlefile_io_manager": fastopendata_singlefile_io_manager,  # for single-file assets
 }
 
-# Combine both sets of assets into a single Definitions object
+# Combine both sets of assets
+all_assets = partitioned_fast_open_assets + single_file_open_assets
+
 defs = Definitions(
-    assets=partitioned_fast_open_assets,
+    assets=all_assets,
     resources=resources
 )
