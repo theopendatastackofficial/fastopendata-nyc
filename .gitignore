@@ -44,3 +44,5 @@ testing/
 
 # Rare Python artifact (unlikely in CPython)
 **/*$py.class
+
+venv
